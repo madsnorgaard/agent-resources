@@ -1,11 +1,16 @@
 ---
 name: module-scaffold
 description: Generate a new Drupal module with best-practice structure
+arguments: "[module_name]"
 ---
 
 # Drupal Module Scaffolding
 
 Create a new Drupal module following best practices.
+
+**Usage:** `/module-scaffold [module_name]`
+
+If a module name is provided as an argument, use it directly. Otherwise, prompt the user for requirements.
 
 ## Step 1: Research First
 

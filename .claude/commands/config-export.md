@@ -7,6 +7,10 @@ description: Export Drupal configuration with proper workflow
 
 Safely export configuration changes with proper review.
 
+**Usage:** `/config-export`
+
+This command takes no arguments. It guides you through a safe configuration export workflow with review steps.
+
 ## Workflow
 
 1. **Check current status**

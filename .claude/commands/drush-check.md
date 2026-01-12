@@ -7,6 +7,10 @@ description: Run common Drush checks to verify Drupal site health
 
 Run a series of Drush commands to check site health and status.
 
+**Usage:** `/drush-check`
+
+This command takes no arguments. It runs a standard set of health checks on the current Drupal site.
+
 ## Steps
 
 1. Check Drush is available:

@@ -1,0 +1,147 @@
+name: Validate Resources
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Validate YAML frontmatter
+        run: |
+          python << 'EOF'
+          import os
+          import re
+          import sys
+          import yaml
+
+          errors = []
+
+          def extract_frontmatter(content):
+              """Extract YAML frontmatter from markdown file."""
+              match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
+              if match:
+                  return match.group(1)
+              return None
+
+          def validate_skill(path, frontmatter):
+              """Validate skill frontmatter."""
+              required = ['name', 'description']
+              for field in required:
+                  if field not in frontmatter:
+                      errors.append(f"{path}: Missing required field '{field}'")
+
+          def validate_command(path, frontmatter):
+              """Validate command frontmatter."""
+              required = ['name', 'description']
+              for field in required:
+                  if field not in frontmatter:
+                      errors.append(f"{path}: Missing required field '{field}'")
+
+          def validate_agent(path, frontmatter):
+              """Validate agent frontmatter."""
+              required = ['name', 'description']
+              for field in required:
+                  if field not in frontmatter:
+                      errors.append(f"{path}: Missing required field '{field}'")
+
+          # Validate skills
+          skills_dir = '.claude/skills'
+          skill_count = 0
+          if os.path.exists(skills_dir):
+              for skill in os.listdir(skills_dir):
+                  skill_path = os.path.join(skills_dir, skill)
+                  if os.path.isdir(skill_path):
+                      skill_file = os.path.join(skill_path, 'SKILL.md')
+                      if os.path.exists(skill_file):
+                          skill_count += 1
+                          with open(skill_file, 'r') as f:
+                              content = f.read()
+                          fm = extract_frontmatter(content)
+                          if fm:
+                              try:
+                                  data = yaml.safe_load(fm)
+                                  validate_skill(skill_file, data)
+                              except yaml.YAMLError as e:
+                                  errors.append(f"{skill_file}: Invalid frontmatter YAML - {e}")
+                          else:
+                              errors.append(f"{skill_file}: Missing frontmatter")
+
+          # Validate commands
+          commands_dir = '.claude/commands'
+          command_count = 0
+          if os.path.exists(commands_dir):
+              for cmd in os.listdir(commands_dir):
+                  if cmd.endswith('.md'):
+                      command_count += 1
+                      cmd_file = os.path.join(commands_dir, cmd)
+                      with open(cmd_file, 'r') as f:
+                          content = f.read()
+                      fm = extract_frontmatter(content)
+                      if fm:
+                          try:
+                              data = yaml.safe_load(fm)
+                              validate_command(cmd_file, data)
+                          except yaml.YAMLError as e:
+                              errors.append(f"{cmd_file}: Invalid frontmatter YAML - {e}")
+                      else:
+                          errors.append(f"{cmd_file}: Missing frontmatter")
+
+          # Validate agents
+          agents_dir = '.claude/agents'
+          agent_count = 0
+          if os.path.exists(agents_dir):
+              for agent in os.listdir(agents_dir):
+                  if agent.endswith('.md'):
+                      agent_count += 1
+                      agent_file = os.path.join(agents_dir, agent)
+                      with open(agent_file, 'r') as f:
+                          content = f.read()
+                      fm = extract_frontmatter(content)
+                      if fm:
+                          try:
+                              data = yaml.safe_load(fm)
+                              validate_agent(agent_file, data)
+                          except yaml.YAMLError as e:
+                              errors.append(f"{agent_file}: Invalid frontmatter YAML - {e}")
+                      else:
+                          errors.append(f"{agent_file}: Missing frontmatter")
+
+          # Report results
+          if errors:
+              print("Validation errors found:")
+              for error in errors:
+                  print(f"  - {error}")
+              sys.exit(1)
+          else:
+              print("All resources validated successfully!")
+              print(f"  - Skills: {skill_count}")
+              print(f"  - Commands: {command_count}")
+              print(f"  - Agents: {agent_count}")
+          EOF
+
+      - name: Check for broken internal links
+        run: |
+          echo "Checking for common issues..."
+          # Check for http:// links to drupal.org (should use https)
+          if grep -r "http://drupal.org" .claude/; then
+            echo "Warning: Found http:// links to drupal.org, should use https://"
+          fi
+          # Check for http://www.drupal.org
+          if grep -r "http://www.drupal.org" .claude/; then
+            echo "Warning: Found http:// links to www.drupal.org, should use https://"
+          fi
+          echo "Link check complete"

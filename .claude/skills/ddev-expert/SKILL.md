@@ -172,6 +172,267 @@ db_pull_command:
 
 Then: `ddev pull platform`
 
+## Xdebug Configuration
+
+### Enable Xdebug
+```bash
+ddev xdebug on           # Enable step debugging
+ddev xdebug off          # Disable (faster performance)
+ddev xdebug status       # Check current state
+```
+
+### IDE Configuration
+
+**VS Code** (with PHP Debug extension):
+```json
+// .vscode/launch.json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Listen for Xdebug",
+      "type": "php",
+      "request": "launch",
+      "port": 9003,
+      "pathMappings": {
+        "/var/www/html": "${workspaceFolder}"
+      }
+    }
+  ]
+}
+```
+
+**PHPStorm**:
+1. Settings → PHP → Servers
+2. Add server: name matches DDEV project name
+3. Host: `<project>.ddev.site`, Port: 443, HTTPS
+4. Path mappings: project root → `/var/www/html`
+
+### Xdebug Modes
+```bash
+# .ddev/php/xdebug.ini
+[xdebug]
+xdebug.mode=debug,develop,coverage
+```
+
+Modes: `debug` (step debugging), `develop` (enhanced errors), `coverage` (code coverage), `profile` (profiling)
+
+## Custom Services
+
+### Redis
+```yaml
+# .ddev/docker-compose.redis.yaml
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: ddev-${DDEV_SITENAME}-redis
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: $DDEV_APPROOT
+    expose:
+      - "6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
+```
+
+Drupal settings.php:
+```php
+$settings['redis.connection']['host'] = 'redis';
+$settings['redis.connection']['port'] = 6379;
+$settings['cache']['default'] = 'cache.backend.redis';
+```
+
+### Solr
+```yaml
+# .ddev/docker-compose.solr.yaml
+services:
+  solr:
+    image: solr:9
+    container_name: ddev-${DDEV_SITENAME}-solr
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: $DDEV_APPROOT
+    expose:
+      - "8983"
+    volumes:
+      - solr-data:/var/solr
+    command: solr-precreate drupal
+
+volumes:
+  solr-data:
+```
+
+Access Solr: `ddev describe` shows URL, typically `https://<project>.ddev.site:8983`
+
+### Elasticsearch
+```yaml
+# .ddev/docker-compose.elasticsearch.yaml
+services:
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: ddev-${DDEV_SITENAME}-elasticsearch
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: $DDEV_APPROOT
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    expose:
+      - "9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+
+volumes:
+  elasticsearch-data:
+```
+
+### Mailpit (Email Testing)
+DDEV includes Mailpit by default:
+```bash
+ddev launch -m           # Open Mailpit UI
+```
+All outgoing mail is captured at `https://<project>.ddev.site:8026`
+
+## Performance Tuning
+
+### Mutagen (macOS/Windows)
+Mutagen provides fast file synchronization for better performance:
+
+```bash
+# Enable globally
+ddev config global --mutagen-enabled
+
+# Or per-project in .ddev/config.yaml
+mutagen_enabled: true
+```
+
+**When to use Mutagen:**
+- macOS with large codebases (vendor, node_modules)
+- Windows with WSL2
+- Projects with slow file I/O
+
+**Mutagen commands:**
+```bash
+ddev mutagen status      # Check sync status
+ddev mutagen sync        # Force sync
+ddev mutagen reset       # Reset if issues
+```
+
+### NFS (macOS alternative)
+For macOS without Mutagen:
+```bash
+ddev config global --nfs-mount-enabled
+```
+
+### Performance Tips
+
+1. **Exclude unnecessary files** from sync:
+   ```yaml
+   # .ddev/config.yaml
+   upload_dirs:
+     - sites/default/files
+   ```
+
+2. **Use tmpfs for temp files**:
+   ```yaml
+   # .ddev/docker-compose.performance.yaml
+   services:
+     web:
+       tmpfs:
+         - /tmp
+   ```
+
+3. **Increase PHP memory for large operations**:
+   ```ini
+   # .ddev/php/performance.ini
+   memory_limit = 1024M
+   ```
+
+## Custom DDEV Commands
+
+Create project-specific commands in `.ddev/commands/`:
+
+```bash
+# .ddev/commands/web/refresh
+#!/bin/bash
+
+## Description: Full site refresh (db + config + cache)
+## Usage: refresh
+## Example: ddev refresh
+
+set -e
+
+echo "Importing database..."
+drush sql:drop -y
+drush sql:cli < /var/www/html/reference.sql
+
+echo "Importing config..."
+drush config:import -y
+
+echo "Running updates..."
+drush updatedb -y
+
+echo "Clearing cache..."
+drush cache:rebuild
+
+echo "Done!"
+```
+
+Make executable: `chmod +x .ddev/commands/web/refresh`
+
+Then run: `ddev refresh`
+
+### Command Locations
+- `.ddev/commands/web/` - Run in web container
+- `.ddev/commands/host/` - Run on host machine
+- `.ddev/commands/db/` - Run in database container
+
+## CI/CD Integration
+
+### GitHub Actions
+```yaml
+# .github/workflows/test.yml
+name: Tests
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup DDEV
+        uses: ddev/github-action-setup-ddev@v1
+
+      - name: Start DDEV
+        run: ddev start
+
+      - name: Install dependencies
+        run: ddev composer install
+
+      - name: Run tests
+        run: ddev exec ./vendor/bin/phpunit
+```
+
+### GitLab CI
+```yaml
+# .gitlab-ci.yml
+test:
+  image: ddev/ddev-gitpod-base:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+  script:
+    - ddev start
+    - ddev composer install
+    - ddev exec ./vendor/bin/phpunit
+```
+
 ## Best Practices
 
 1. **Commit .ddev folder** (except .ddev/db_snapshots, .ddev/.gitignore handles this)
@@ -179,3 +440,6 @@ Then: `ddev pull platform`
 3. **Document custom services** in project README
 4. **Use snapshots** before risky database operations
 5. **Keep DDEV updated**: `ddev self-upgrade`
+6. **Use Mutagen on macOS/Windows** for better performance
+7. **Create custom commands** for repetitive tasks
+8. **Test DDEV config in CI** to catch issues early

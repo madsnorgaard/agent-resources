@@ -446,6 +446,72 @@ Before upgrading D10 → D11:
 4. Consider moving hooks to OOP style
 5. Test thoroughly in staging environment
 
+## Pre-Commit Checks
+
+**CRITICAL: Always run these checks locally BEFORE committing or pushing code.**
+
+CI pipeline failures are embarrassing and waste time. Catch issues locally first.
+
+### Required: Coding Standards (PHPCS)
+
+```bash
+# Check for coding standard violations
+./vendor/bin/phpcs -p --colors modules/custom/
+
+# Auto-fix what can be fixed
+./vendor/bin/phpcbf modules/custom/
+
+# Check specific file
+./vendor/bin/phpcs path/to/MyClass.php
+```
+
+**Common PHPCS errors to watch for:**
+- Missing trailing commas in multi-line function declarations
+- Nullable parameters without `?` type hint
+- Missing docblocks
+- Incorrect spacing/indentation
+
+### DDEV Shortcut
+
+```bash
+# Run inside DDEV
+ddev exec ./vendor/bin/phpcs -p modules/custom/
+ddev exec ./vendor/bin/phpcbf modules/custom/
+```
+
+### Recommended: Full Pre-Commit Checklist
+
+```bash
+# 1. Coding standards
+./vendor/bin/phpcs -p modules/custom/
+
+# 2. Static analysis (if configured)
+./vendor/bin/phpstan analyze modules/custom/
+
+# 3. Deprecation checks
+./vendor/bin/drupal-check modules/custom/
+
+# 4. Run tests
+./vendor/bin/phpunit modules/custom/my_module/tests/
+```
+
+### Git Pre-Commit Hook (Optional)
+
+Create `.git/hooks/pre-commit`:
+```bash
+#!/bin/bash
+./vendor/bin/phpcs --standard=Drupal,DrupalPractice modules/custom/ || exit 1
+```
+
+Make executable: `chmod +x .git/hooks/pre-commit`
+
+### Installing PHPCS with Drupal Standards
+
+```bash
+composer require --dev drupal/coder
+./vendor/bin/phpcs --config-set installed_paths vendor/drupal/coder/coder_sniffer
+```
+
 ## Sources
 
 - [Drupal Testing Types](https://www.drupal.org/docs/develop/automated-testing/types-of-tests)

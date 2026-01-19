@@ -535,6 +535,176 @@ docker compose exec php drush field:create node article
 ddev exec drush generate controller
 ```
 
+### Non-Interactive Mode for Automation and AI Agents
+
+**CRITICAL: Drush generators are interactive by default. Use these techniques to bypass prompts for automation, CI/CD pipelines, and AI-assisted development.**
+
+#### Method 1: `--answers` with JSON (Recommended)
+
+Pass all answers as a JSON object. This is the most reliable method for complete automation:
+
+```bash
+# Generate a complete module non-interactively
+drush generate module --answers='{
+  "name": "My Custom Module",
+  "machine_name": "my_custom_module",
+  "description": "A custom module for specific functionality",
+  "package": "Custom",
+  "dependencies": "",
+  "install_file": "no",
+  "libraries": "no",
+  "permissions": "no",
+  "event_subscriber": "no",
+  "block_plugin": "no",
+  "controller": "no",
+  "settings_form": "no"
+}'
+
+# Generate a controller non-interactively
+drush generate controller --answers='{
+  "module": "my_custom_module",
+  "class": "MyController",
+  "services": ["entity_type.manager", "current_user"]
+}'
+
+# Generate a form non-interactively
+drush generate form-simple --answers='{
+  "module": "my_custom_module",
+  "class": "ContactForm",
+  "form_id": "my_custom_module_contact",
+  "route": "yes",
+  "route_path": "/contact-us",
+  "route_title": "Contact Us",
+  "route_permission": "access content",
+  "link": "no"
+}'
+```
+
+#### Method 2: Sequential `--answer` Flags
+
+For simpler generators, use multiple `--answer` (or `-a`) flags in order:
+
+```bash
+# Answers are consumed in order of the prompts
+drush generate controller --answer="my_module" --answer="PageController" --answer=""
+
+# Short form
+drush gen controller -a my_module -a PageController -a ""
+```
+
+#### Method 3: Discover Required Answers
+
+Use `--dry-run` with verbose output to discover all prompts and their expected values:
+
+```bash
+# Preview generation and see all prompts
+drush generate module -vvv --dry-run
+
+# This shows you exactly what answers are needed
+# Then re-run with --answers JSON
+```
+
+#### Method 4: Auto-Accept Defaults
+
+Use `-y` or `--yes` to accept all default values (useful when defaults are acceptable):
+
+```bash
+# Accept all defaults
+drush generate module -y
+
+# Combine with some answers to override specific defaults
+drush generate module --answer="My Module" -y
+```
+
+#### Complete Non-Interactive Examples
+
+**Generate a block plugin:**
+```bash
+drush generate plugin:block --answers='{
+  "module": "my_custom_module",
+  "plugin_id": "my_custom_block",
+  "admin_label": "My Custom Block",
+  "category": "Custom",
+  "class": "MyCustomBlock",
+  "services": ["entity_type.manager"],
+  "configurable": "no",
+  "access": "no"
+}'
+```
+
+**Generate a service:**
+```bash
+drush generate service --answers='{
+  "module": "my_custom_module",
+  "service_name": "my_custom_module.helper",
+  "class": "HelperService",
+  "services": ["database", "logger.factory"]
+}'
+```
+
+**Generate an event subscriber:**
+```bash
+drush generate event-subscriber --answers='{
+  "module": "my_custom_module",
+  "class": "MyEventSubscriber",
+  "event": "kernel.request"
+}'
+```
+
+**Generate a Drush command:**
+```bash
+drush generate drush:command-file --answers='{
+  "module": "my_custom_module",
+  "class": "MyCommands",
+  "services": ["entity_type.manager"]
+}'
+```
+
+#### Common Answer Keys Reference
+
+| Generator | Common Answer Keys |
+|-----------|-------------------|
+| `module` | `name`, `machine_name`, `description`, `package`, `dependencies`, `install_file`, `libraries`, `permissions`, `event_subscriber`, `block_plugin`, `controller`, `settings_form` |
+| `controller` | `module`, `class`, `services` |
+| `form-simple` | `module`, `class`, `form_id`, `route`, `route_path`, `route_title`, `route_permission`, `link` |
+| `form-config` | `module`, `class`, `form_id`, `route`, `route_path`, `route_title` |
+| `plugin:block` | `module`, `plugin_id`, `admin_label`, `category`, `class`, `services`, `configurable`, `access` |
+| `service` | `module`, `service_name`, `class`, `services` |
+| `event-subscriber` | `module`, `class`, `event` |
+
+#### Best Practices for AI-Assisted Development
+
+1. **Always use `--answers` JSON** - Most reliable for deterministic generation
+2. **Validate with `--dry-run` first** - Preview output before writing files
+3. **Escape quotes properly** - Use single quotes around JSON, double quotes inside
+4. **Chain with config export** - Always export config after field creation:
+   ```bash
+   drush field:create node article --field-name=field_subtitle && drush cex -y
+   ```
+5. **Document your commands** - Store generation commands in project README for reproducibility
+
+#### Troubleshooting
+
+**"Missing required answer" error:**
+```bash
+# Use -vvv to see which answer is missing
+drush generate module -vvv --answers='{"name": "Test"}'
+```
+
+**JSON parsing errors:**
+```bash
+# Ensure proper escaping - use single quotes outside, double inside
+drush generate module --answers='{"name": "Test Module"}'  # Correct
+drush generate module --answers="{"name": "Test Module"}"  # Wrong - shell interprets braces
+```
+
+**Interactive prompt still appears:**
+```bash
+# Some prompts may not have defaults - provide all required answers
+# Use --dry-run first to identify all prompts
+drush generate module -vvv --dry-run 2>&1 | grep -E "^\s*\?"
+```
+
 ## Essential Drush Commands
 
 ```bash

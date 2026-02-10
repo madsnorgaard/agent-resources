@@ -1,6 +1,6 @@
-# Agent Resources Roadmap
+# Drupal Agent Resources Roadmap
 
-This document outlines planned improvements and new resources for the agent-resources repository, with focus on Drupal 11, PHP 8.4, and enhanced developer workflows.
+This document outlines planned improvements and new resources for the drupal-agent-resources repository, with focus on Drupal 11, PHP 8.4, and enhanced developer workflows.
 
 ## Current State Analysis
 

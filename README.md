@@ -1,4 +1,4 @@
-# Agent Resources
+# Drupal Agent Resources
 
 Reusable Claude Code resources for Drupal 10/11 development with DDEV and Docker-based local environments.
 

@@ -1,4 +1,4 @@
-# Agent Resources - Development Guidelines
+# Drupal Agent Resources - Development Guidelines
 
 This repository contains reusable Claude Code resources for Drupal development. When working in this repo, follow these guidelines.
 
